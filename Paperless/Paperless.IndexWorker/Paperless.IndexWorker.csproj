@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-Paperless.IndexWorker-ae659906-e43f-4914-894f-dcfdcfc7866f</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.5" />
+    <PackageReference Include="RabbitMQ.Client" Version="7.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Paperless.Contracts\Paperless.Contracts.csproj" />
+    <ProjectReference Include="..\Paperless.Infrastructure\Paperless.Infrastructure.csproj" />
+    <ProjectReference Include="..\Paperless.Shared\Paperless.Shared.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,219 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: paperless_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: paperless_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_DEFAULT_VHOST}
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Management UI
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping && rabbitmq-diagnostics -q check_port_connectivity"]
+      interval: 10s
+      timeout: 20s
+      retries: 20
+      start_period: 20s
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  adminer:
+    image: adminer:latest
+    container_name: paperless_adminer
+    depends_on:
+      postgres:
+        condition: service_started
+    ports:
+      - "9091:8080"
+    restart: unless-stopped
+    
+  minio:
+    image: minio/minio:latest
+    container_name: paperless_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    restart: unless-stopped
+    volumes:
+      - minio_data:/data
+
+  rest:
+    build:
+      context: .
+      dockerfile: Paperless/Paperless.Rest/Dockerfile
+    container_name: paperless_rest
+    init: true
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=${POSTGRES_HOST:-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_URLS: "http://0.0.0.0:8080"
+      RABBITMQ__HOST: "rabbitmq"
+      RABBITMQ__PORT: "5672"
+      RABBITMQ__USERNAME: "${RABBITMQ_DEFAULT_USER}"
+      RABBITMQ__PASSWORD: "${RABBITMQ_DEFAULT_PASS}"
+      RABBITMQ__VHOST: "${RABBITMQ_DEFAULT_VHOST}"
+      ELASTICSEARCH__URL: "http://elasticsearch:9200"
+      ELASTICSEARCH__INDEXNAME: "documents"
+      RABBITMQ__OCRINQUEUE: "${QUEUE_OCR_IN}"
+      RABBITMQ__INDEXUPDATEQUEUE: "${QUEUE_INDEX_UPATE}"
+      RABBITMQ__INDEXDELETEQUEUE: "${QUEUE_INDEX_DELETE}"
+      RABBITMQ__OCROUTQUEUE: "${QUEUE_OCR_OUT}"
+      RABBITMQ__GENAIINQUEUE: "${QUEUE_GENAI_IN}"
+      RABBITMQ__INDEXINQUEUE: "${QUEUE_INDEX_IN}"
+      RABBITMQ__SUMMARYINQUEUE: "${QUEUE_SUMMARY_IN}"
+      MINIO__ENDPOINT: "minio"
+      MINIO__PORT: "9000"
+      MINIO__ACCESSKEY: "${MINIO_ROOT_USER:-minioadmin}"
+      MINIO__SECRETKEY: "${MINIO_ROOT_PASSWORD:-minioadmin}"
+      MINIO__USESSL: "false"
+      MINIO__BUCKET: "${MINIO_BUCKET:-uploads}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    volumes:
+      - uploads:/app/uploads
+
+  web:
+    build:
+      context: ./Paperless/Paperless.Web
+      dockerfile: Dockerfile
+    container_name: paperless_web
+    init: true
+    depends_on:
+      rest:
+        condition: service_started
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+  ocrworker:
+    build:
+      context: .
+      dockerfile: Paperless/Paperless.OcrWorker/Dockerfile
+    container_name: paperless_ocrworker
+    environment:
+      RABBITMQ__HOST: "rabbitmq"
+      RABBITMQ__PORT: "5672"
+      RABBITMQ__USERNAME: "${RABBITMQ_DEFAULT_USER}"
+      RABBITMQ__PASSWORD: "${RABBITMQ_DEFAULT_PASS}"
+      RABBITMQ__VHOST: "${RABBITMQ_DEFAULT_VHOST}"
+      RABBITMQ__OCRINQUEUE: "${QUEUE_OCR_IN}"
+      RABBITMQ__INDEXUPDATEQUEUE: "${QUEUE_INDEX_UPATE}"
+      RABBITMQ__INDEXDELETEQUEUE: "${QUEUE_INDEX_DELETE}"
+      RABBITMQ__OCROUTQUEUE: "${QUEUE_OCR_OUT}"
+      RABBITMQ__GENAIINQUEUE: "${QUEUE_GENAI_IN}"
+      RABBITMQ__INDEXINQUEUE: "${QUEUE_INDEX_IN}"
+      MINIO__ENDPOINT: "minio"
+      MINIO__PORT: "9000"
+      MINIO__ACCESSKEY: "${MINIO_ROOT_USER:-minioadmin}"
+      MINIO__SECRETKEY: "${MINIO_ROOT_PASSWORD:-minioadmin}"
+      MINIO__USESSL: "false"
+      MINIO__BUCKET: "${MINIO_BUCKET:-uploads}"
+      TESSDATA_PREFIX: "/usr/share"
+      TESSDATA_LANGS: "eng+deu"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    restart: unless-stopped
+    volumes:
+      - ./Paperless/Paperless.OcrWorker/tessdata:/usr/share/tessdata:ro
+
+  genaiworker:
+    build:
+      context: .
+      dockerfile: Paperless/Paperless.GenAiWorker/Dockerfile
+    container_name: paperless_genaiworker
+    environment:
+      RABBITMQ__HOST: "rabbitmq"
+      RABBITMQ__PORT: "5672"
+      RABBITMQ__USERNAME: "${RABBITMQ_DEFAULT_USER}"
+      RABBITMQ__PASSWORD: "${RABBITMQ_DEFAULT_PASS}"
+      RABBITMQ__VHOST: "${RABBITMQ_DEFAULT_VHOST}"
+      RABBITMQ__GENAIINQUEUE: "${QUEUE_GENAI_IN}"       
+      RABBITMQ__SUMMARYINQUEUE: "${QUEUE_SUMMARY_IN}"   # sends summaries back to REST
+      GEMINI__APIKEY: "${GEMINI_API_KEY}"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    
+  indexworker:
+    build:
+      context: .
+      dockerfile: Paperless/Paperless.IndexWorker/Dockerfile
+    container_name: paperless_indexworker
+    environment:
+      RABBITMQ__HOST: "rabbitmq"
+      RABBITMQ__PORT: "5672"
+      RABBITMQ__USERNAME: "${RABBITMQ_DEFAULT_USER}"
+      RABBITMQ__PASSWORD: "${RABBITMQ_DEFAULT_PASS}"
+      RABBITMQ__VHOST: "${RABBITMQ_DEFAULT_VHOST}"
+      RABBITMQ__INDEXINQUEUE: "${QUEUE_INDEX_IN}"
+      RABBITMQ__INDEXUPDATEQUEUE: "${QUEUE_INDEX_UPATE}"
+      RABBITMQ__INDEXDELETEQUEUE: "${QUEUE_INDEX_DELETE}"
+      ELASTICSEARCH__URL: "http://elasticsearch:9200"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+    
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: paperless_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  uploads:
+  minio_data:
+  es_data:

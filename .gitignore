@@ -1,0 +1,22 @@
+# Git / IDE
+.git/
+.vs/
+*.user
+*.suo
+
+# Build outputs
+**/bin/
+**/obj/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Logs
+**/Logs/
+
+# Secrets
+.env
+# local env
+.env
+.env.*

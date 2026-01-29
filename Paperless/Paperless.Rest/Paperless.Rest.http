@@ -1,0 +1,6 @@
+@Paperless.Rest_HostAddress = http://localhost:5160
+
+GET {{Paperless.Rest_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

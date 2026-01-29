@@ -1,0 +1,37 @@
+# Build artifacts
+**/bin/**
+**/obj/**
+**/out/**
+
+# IDE/editor settings (recursive)
+**/.vs/**
+**/.vscode/**
+**/.idea/**
+*.user
+*.suo
+
+# Git
+.git/
+.gitignore
+
+# OS cruft
+**/.DS_Store
+Thumbs.db
+
+# Logs and temp
+**/Logs/**
+*.log
+*.tmp
+**/TestStore/**
+
+# Node (if we ever add Angular/React later)
+**/node_modules/**
+npm-debug.log
+yarn-error.log
+
+# Tests / misc
+*.http
+
+# Docker itself (optional)
+docker-compose.override.yml
+Dockerfile

@@ -1,0 +1,107 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Paperless by Chava & Lukas</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+    <header class="hero">
+        <div class="hero-inner">
+            <h1>Paperless by Chava & Lukas</h1>
+            <span class="subtitle">Document management with full-text search</span>
+        </div>
+        <nav>
+            <a href="http://localhost:8080/swagger" target="_blank" rel="noopener">API</a>
+        </nav>
+    </header>
+
+    <main>
+
+        <section class="card search-card">
+            <h2>Search</h2>
+            <form id="searchForm" class="search-form">
+                <input id="searchQuery"
+                       type="text"
+                       placeholder="Search by content, title, or keywords…"
+                       autocomplete="off" />
+                <button type="submit">Search</button>
+                <button id="searchClearBtn" type="button" class="secondary">Clear</button>
+            </form>
+
+            <div id="searchResult" class="search-results muted">
+                Start typing to search your documents.
+            </div>
+        </section>
+
+        <section class="card">
+            <h2 id="formHeader">Upload document</h2>
+
+            <form id="createForm" enctype="multipart/form-data" class="upload-form">
+                <div class="form-row">
+                    <label>
+                        Name
+                        <input id="name" required placeholder="e.g. Research notes, Invoice May 2025" />
+                    </label>
+
+                    <label id="fileGroup">
+                        File
+                        <input id="file" type="file" required />
+                    </label>
+                </div>
+
+                <div class="field">
+                    <label for="tagInput">Tags</label>
+                    <input id="tagInput"
+                           type="text"
+                           placeholder="Add a tag and press Enter"
+                           list="tagSuggestions"
+                           autocomplete="off" />
+                    <datalist id="tagSuggestions"></datalist>
+                    <div id="tagChips" class="chips"></div>
+                    <small>Tags help with filtering and search.</small>
+                </div>
+
+                <div class="actions">
+                    <button type="submit" id="submitBtn">Upload</button>
+
+                    <button type="button" id="cancelEditBtn" class="secondary" style="display:none">Cancel</button>
+                </div>
+            </form>
+
+            <div id="createResult" class="status-box muted"></div>
+        </section>
+
+        <section class="card">
+            <div class="card-header">
+                <h2>Documents</h2>
+                <button id="refreshBtn" class="secondary">Refresh</button>
+            </div>
+
+            <table id="docsTable" class="docs-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Uploaded</th>
+                        <th>Tags</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </section>
+
+        <section class="card details-card">
+            <h2>Document details</h2>
+            <div id="detailsBox" class="details-placeholder">
+                Select a document to view details.
+            </div>
+        </section>
+
+    </main>
+
+    <script src="./app.js"></script>
+</body>
+</html>

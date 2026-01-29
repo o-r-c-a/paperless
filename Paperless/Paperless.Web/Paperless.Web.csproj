@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="index.html" CopyToOutputDirectory="Always" />
+    <None Include="styles.css" CopyToOutputDirectory="Always" />
+    <None Include="app.js" CopyToOutputDirectory="Always" />
+    <None Include="nginx.conf" CopyToOutputDirectory="Always" />
+    <None Include="Dockerfile" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+</Project>
